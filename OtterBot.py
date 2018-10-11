@@ -52,7 +52,9 @@ async def on_ready():
             f.close()
             serverDocsDict[server.id] = [['Are you cutebot?',':mothyes:',3]]
             lastMessage[server.id] = ':mothyes:'
-
+    print(serverDocsDict)
+    print('----------')
+    print(serverTermsIndex)
 
 @bot.event
 async def on_server_join(server):
@@ -70,6 +72,7 @@ async def on_message(message):
     global indexingCount
     serverId = message.server.id
     queryToAnswer = lastMessage[serverId]
+    tokenizedMessage = Lab2.cleanPhrase(message.content)
     terms = Lab2.cleanPhrase(queryToAnswer)
     serverDocsDict[serverId].append([queryToAnswer,message.content,len(terms)])
     print('Query: ' + queryToAnswer)
@@ -77,19 +80,24 @@ async def on_message(message):
 
     lastMessage[serverId] = message.content
     indexingCount += 1
-    if(indexingCount > 3000):
+    if(indexingCount > 10):
         indexingCount = 0
-        saveCurrentData()
+        await saveCurrentData()
 
-    if('otterbot' in terms):
-        if(len(terms) > 1):
-            terms.remove('otterbot')
-        similPars = Lab2.prodSimilarityOtter(terms,serverDocsDict[serverId],serverTermsIndex[serverId])
+    if('otterbot' in tokenizedMessage):
+        if(len(tokenizedMessage) > 1):
+            tokenizedMessage.remove('otterbot')
+        similPars = Lab2.prodSimilarityOtter(tokenizedMessage,serverDocsDict[serverId],serverTermsIndex[serverId])
         if(len(similPars) > 0):
             sortedPairs = sorted( ((v,k) for k,v in similPars.items()), reverse=True)
-            await bot.say(str(serverDocsDict[serverId][sortedPairs[0][1]][0]))
+            print(serverDocsDict)
+            print(serverDocsDict[serverId])
+            print(serverDocsDict[serverId][0])
+            print(sortedPairs)
+            print(serverDocsDict[serverId][sortedPairs[0][1]][1])
+            await bot.send_message(message.channel,str(serverDocsDict[serverId][sortedPairs[0][1]][1]))
         else:
-            await bot.say(':mothno:')
+            await bot.send_message(message.channel,':mothno:')
 
 
 
