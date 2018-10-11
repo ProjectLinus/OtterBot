@@ -22,6 +22,24 @@ def createIndexes(filename):
     return documentArray, invertedIndex
 
 
+def createIndex(terms,numDocs):
+    invertedIndex = {}
+    
+    for term in terms:
+        if(term in invertedIndex.keys()):
+            if(invertedIndex[term][-1][0] != numDocs-1):
+                invertedIndex[term].append([numDocs - 1,1])
+            else:
+                invertedIndex[term][-1][1] += 1
+        else:
+            invertedIndex[term] = [[numDocs - 1,1]]
+    return invertedIndex
+
+
+
+
+
+
 def cleanPhrase(phrase):
     phrase = re.sub(r'\W+',' ',phrase).lower()
     return nltk.word_tokenize(phrase)
@@ -78,6 +96,21 @@ def prodSimilarity(termList,documents,index):
                     pairList[doc[0]] = 0
                 pairList[doc[0]] += doc[1]/documents[doc[0]][1] * idf
     return pairList
+
+
+def prodSimilarityOtter(termList,documents,index):
+    pairList = {}
+    for term in termList:
+        if(term.lower() in index.keys()):
+            inv = index[term]
+            idf = getInverseDocumentFrequency(documents,term,index[term])
+            for doc in inv:
+                if(doc[0] not in pairList):
+                    pairList[doc[0]] = 0
+                pairList[doc[0]] += doc[1]/documents[doc[0]][2] * idf
+    return pairList
+
+
 
 
 def printProdSimil(pairList,documents):

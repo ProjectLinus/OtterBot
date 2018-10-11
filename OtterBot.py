@@ -26,8 +26,7 @@ bot = Bot(command_prefix='???')
 serverDocsDict={}
 lastMessage = {}
 indexingCount = 0
-
-
+serverTermsIndex = {}
 
 
 
@@ -39,7 +38,10 @@ async def on_ready():
             with open(str(server.id)+'.txt','r+',encoding='utf8') as serverCorpus:
                 data = json.load(serverCorpus)
                 for element in data['pairs']:
-                    serverQueryMap.append([element['query'],element['answer']])
+                    terms = Lab2.cleanPhrase(element['query'])
+                    termIndex = Lab2.createIndex(terms,len(data['pairs']))
+                    serverTermsIndex[server.id] = termIndex
+                    serverQueryMap.append([element['query'],element['answer'],len(terms)])
             print(serverQueryMap)
             serverDocsDict[server.id] = serverQueryMap
             lastMessage[server.id] = serverQueryMap[-1][1]
@@ -48,7 +50,7 @@ async def on_ready():
             f = open(str(server.id)+'.txt','w',encoding='utf8')
             f.write('{\"pairs\": [{\"query\": \"Are you cutebot?\", \"answer\": \":mothyes:\"}]}')
             f.close()
-            serverDocsDict[server.id] = ['Are you cutebot?',':mothyes:']
+            serverDocsDict[server.id] = [['Are you cutebot?',':mothyes:',3]]
             lastMessage[server.id] = ':mothyes:'
 
 
@@ -58,7 +60,7 @@ async def on_server_join(server):
         f = open(str(server.id)+'.txt','w',encoding='utf8')
         f.write('{\"pairs\": [{\"query\": \"Are you cutebot?\", \"answer\": \":mothyes:\"}]}')
         f.close()
-        serverDocsDict[server.id] = ['Are you cutebot?',':mothyes:']
+        serverDocsDict[server.id] = [['Are you cutebot?',':mothyes:',3]]
         lastMessage[server.id] = ':mothyes:'
 
 
@@ -68,14 +70,28 @@ async def on_message(message):
     global indexingCount
     serverId = message.server.id
     queryToAnswer = lastMessage[serverId]
-    serverDocsDict[serverId].append([queryToAnswer,message.content])
+    terms = Lab2.cleanPhrase(queryToAnswer)
+    serverDocsDict[serverId].append([queryToAnswer,message.content,len(terms)])
     print('Query: ' + queryToAnswer)
     print('Answer: ' + message.content)
+
     lastMessage[serverId] = message.content
     indexingCount += 1
     if(indexingCount > 3000):
         indexingCount = 0
         saveCurrentData()
+
+    if('otterbot' in terms):
+        if(len(terms) > 1):
+            terms.remove('otterbot')
+        similPars = Lab2.prodSimilarityOtter(terms,serverDocsDict[serverId],serverTermsIndex[serverId])
+        if(len(similPars) > 0):
+            sortedPairs = sorted( ((v,k) for k,v in similPars.items()), reverse=True)
+            await bot.say(str(serverDocsDict[serverId][sortedPairs[0][1]][0]))
+        else:
+            await bot.say(':mothno:')
+
+
 
 @bot.event
 async def saveCurrentData():
