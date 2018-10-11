@@ -98,15 +98,3 @@ def queryUser(documents,index):
         tokenizedQuery = cleanPhrase(query)
         similPairs = prodSimilarity(tokenizedQuery,documents,index)
         printQueryResponses(similPairs,documents)
-
-
-documents, index = createIndexes('monifa_outburst.txt')
-queryUser(documents,index)
-
-
-
-#print(index,'\n')
-#if(len(sys.argv) > 1):
-    #printTermStats(sys.argv[1:],documents,index)
-    #print('Query: ' + ' '.join(sys.argv[1:]) + "\n")
-    #printProdSimil(prodSimilarity(sys.argv[1:],documents,index),documents)

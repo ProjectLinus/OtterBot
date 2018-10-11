@@ -21,7 +21,7 @@ handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(me
 logger.addHandler(handler)
 
 
-bot = Bot(command_prefix='')
+bot = Bot(command_prefix='???')
 
 serverDocsDict={}
 lastMessage = {}
@@ -36,16 +36,17 @@ async def on_ready():
     for server in bot.servers:
         serverQueryMap = []
         if(os.path.isfile(str(server.id)+'.txt')):
-            with open(str(server.id)+'.txt','rw',encoding='utf8') as serverCorpus:
+            with open(str(server.id)+'.txt','r+',encoding='utf8') as serverCorpus:
                 data = json.load(serverCorpus)
                 for element in data['pairs']:
                     serverQueryMap.append([element['query'],element['answer']])
+            print(serverQueryMap)
             serverDocsDict[server.id] = serverQueryMap
-            lastMessage[server.id] = serverQueryMap[:-1][1]
+            lastMessage[server.id] = serverQueryMap[-1][1]
 
         else:
             f = open(str(server.id)+'.txt','w',encoding='utf8')
-            f.write('{\'pairs\': [{\'query\': \'Are you cutebot?\', \'answer\': \':mothyes:\'}]}')
+            f.write('{\"pairs\": [{\"query\": \"Are you cutebot?\", \"answer\": \":mothyes:\"}]}')
             f.close()
             serverDocsDict[server.id] = ['Are you cutebot?',':mothyes:']
             lastMessage[server.id] = ':mothyes:'
@@ -55,7 +56,7 @@ async def on_ready():
 async def on_server_join(server):
     if(server.id not in serverDocsDict.keys()):
         f = open(str(server.id)+'.txt','w',encoding='utf8')
-        f.write('{\'pairs\': [{\'query\': \'Are you cutebot?\', \'answer\': \':mothyes:\'}]}')
+        f.write('{\"pairs\": [{\"query\": \"Are you cutebot?\", \"answer\": \":mothyes:\"}]}')
         f.close()
         serverDocsDict[server.id] = ['Are you cutebot?',':mothyes:']
         lastMessage[server.id] = ':mothyes:'
@@ -68,6 +69,8 @@ async def on_message(message):
     serverId = message.server.id
     queryToAnswer = lastMessage[serverId]
     serverDocsDict[serverId].append([queryToAnswer,message.content])
+    print('Query: ' + queryToAnswer)
+    print('Answer: ' + message.content)
     lastMessage[serverId] = message.content
     indexingCount += 1
     if(indexingCount > 3000):
@@ -86,3 +89,7 @@ async def saveCurrentData():
             })
         with open(serverId + '.txt', 'w') as output:
             json.dump(data,output)
+
+
+
+bot.run(Token.token)
