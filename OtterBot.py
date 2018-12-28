@@ -12,6 +12,7 @@ import math
 import Lab2
 import os.path
 import json
+import random
 
 
 logger = logging.getLogger('discord')
@@ -34,15 +35,21 @@ serverTermsIndex = {}
 async def on_ready():
     for server in bot.servers:
         serverQueryMap = []
+        termIndex = {}
         if(os.path.isfile(str(server.id)+'.txt')):
             with open(str(server.id)+'.txt','r+',encoding='utf8') as serverCorpus:
                 data = json.load(serverCorpus)
                 for element in data['pairs']:
                     terms = Lab2.cleanPhrase(element['query'])
-                    termIndex = Lab2.createIndex(terms,len(data['pairs']))
-                    serverTermsIndex[server.id] = termIndex
-                    serverQueryMap.append([element['query'],element['answer'],len(terms)])
-            print(serverQueryMap)
+                    checkQuery = await messageCheck(element['query'])
+                    checkAnswer = await messageCheck(element['answer'])
+                    if(checkQuery and checkAnswer and ('otterbot' not in element['query'].lower()) and ('belmiro' not in element['answer'].lower())):
+                        if(len(terms) == 0):
+                            serverQueryMap.append([element['query'],element['answer'],1])
+                        else:
+                            serverQueryMap.append([element['query'],element['answer'],len(terms)])
+                        termIndex = Lab2.createIndex(terms,len(serverQueryMap)-1,termIndex)
+                        serverTermsIndex[server.id] = termIndex
             serverDocsDict[server.id] = serverQueryMap
             lastMessage[server.id] = serverQueryMap[-1][1]
 
@@ -52,9 +59,6 @@ async def on_ready():
             f.close()
             serverDocsDict[server.id] = [['Are you cutebot?',':mothyes:',3]]
             lastMessage[server.id] = ':mothyes:'
-    print(serverDocsDict)
-    print('----------')
-    print(serverTermsIndex)
 
 @bot.event
 async def on_server_join(server):
@@ -69,35 +73,63 @@ async def on_server_join(server):
 
 @bot.event
 async def on_message(message):
-    global indexingCount
-    serverId = message.server.id
-    queryToAnswer = lastMessage[serverId]
-    tokenizedMessage = Lab2.cleanPhrase(message.content)
-    terms = Lab2.cleanPhrase(queryToAnswer)
-    serverDocsDict[serverId].append([queryToAnswer,message.content,len(terms)])
-    print('Query: ' + queryToAnswer)
-    print('Answer: ' + message.content)
-
-    lastMessage[serverId] = message.content
-    indexingCount += 1
-    if(indexingCount > 10):
-        indexingCount = 0
-        await saveCurrentData()
-
-    if('otterbot' in tokenizedMessage):
-        if(len(tokenizedMessage) > 1):
-            tokenizedMessage.remove('otterbot')
-        similPars = Lab2.prodSimilarityOtter(tokenizedMessage,serverDocsDict[serverId],serverTermsIndex[serverId])
-        if(len(similPars) > 0):
-            sortedPairs = sorted( ((v,k) for k,v in similPars.items()), reverse=True)
-            print(serverDocsDict)
-            print(serverDocsDict[serverId])
-            print(serverDocsDict[serverId][0])
-            print(sortedPairs)
-            print(serverDocsDict[serverId][sortedPairs[0][1]][1])
-            await bot.send_message(message.channel,str(serverDocsDict[serverId][sortedPairs[0][1]][1]))
+    checkNewMessage = await messageCheck(message.content.lower())
+    if(checkNewMessage and not message.author.bot):
+        global indexingCount
+        serverId = message.server.id
+        queryToAnswer = lastMessage[serverId]
+        tokenizedMessage = Lab2.cleanPhrase(message.content)
+        terms = Lab2.cleanPhrase(queryToAnswer)
+        await channelAllowed(message.channel.id)
+		
+		
+        if('otterbot' in tokenizedMessage or 'belmiro' in tokenizedMessage and await channelAllowed(message.channel.id)):
+            if(len(tokenizedMessage) > 1):
+                if('otterbot' in tokenizedMessage):
+                    tokenizedMessage.remove('otterbot')
+                if('belmiro' in tokenizedMessage):
+                    tokenizedMessage.remove('belmiro')
+            print('USER INPUT: ',tokenizedMessage)
+            similPars = Lab2.prodSimilarityOtter(tokenizedMessage,serverDocsDict[serverId],serverTermsIndex[serverId])
+            if(len(similPars) > 0):
+                sortedPairs = sorted( ((v,k) for k,v in similPars.items()), reverse=True)
+                if(len(sortedPairs)>5):
+                    sortedPairs = sortedPairs[0:5]
+                for pair in sortedPairs:
+                    print('PROPOSAL: ' + str(serverDocsDict[serverId][pair[1]][1]))
+                choice = random.randrange(math.ceil(len(sortedPairs)))
+                await bot.send_message(message.channel,str(serverDocsDict[serverId][sortedPairs[choice][1]][1]))
+            else:
+                await bot.send_message(message.channel,'<:sadotter:509261369493946369>')
         else:
-            await bot.send_message(message.channel,':mothno:')
+            if(len(terms) == 0):
+                serverDocsDict[serverId].append([queryToAnswer,message.content,1])
+            else:
+                serverDocsDict[serverId].append([queryToAnswer,message.content,len(terms)])
+            await createTermEntry(terms,len(serverDocsDict[serverId]),serverId)
+            print('Query: ' + queryToAnswer)
+            print('Answer: ' + message.content)
+            
+            lastMessage[serverId] = message.content
+            if(random.random() < 0.002):
+                similPars = Lab2.prodSimilarityOtter(tokenizedMessage,serverDocsDict[serverId],serverTermsIndex[serverId])
+                if(len(similPars) > 0):
+                    sortedPairs = sorted( ((v,k) for k,v in similPars.items()), reverse=True)
+                    if(len(sortedPairs)>5):
+                        sortedPairs = sortedPairs[0:5]
+                    for pair in sortedPairs:
+                        print('PROPOSAL: ' + str(serverDocsDict[serverId][pair[1]][1]))
+                    choice = random.randrange(math.ceil(len(sortedPairs)))
+                    await bot.send_message(message.channel,str(serverDocsDict[serverId][sortedPairs[choice][1]][1]))
+            indexingCount += 1
+            if(indexingCount > 10):
+                indexingCount = 0
+                await saveCurrentData()
+    elif(message.author.id == bot.user.id):
+        await bot.add_reaction(message,'✅')
+        await bot.add_reaction(message,'❌')
+        await bot.add_reaction(message,'❔')
+
 
 
 
@@ -115,5 +147,25 @@ async def saveCurrentData():
             json.dump(data,output)
 
 
+@bot.event
+async def channelAllowed(channelId):
+    return channelId not in ['486239015767375891']
+
+@bot.event
+async def createTermEntry(terms,docPosition,serverId):
+    global serverTermsIndex
+
+    for term in terms:
+        if(term in serverTermsIndex[serverId].keys()):
+            if(serverTermsIndex[serverId][term][-1][0] != docPosition-1):
+                serverTermsIndex[serverId][term].append([docPosition-1,1])
+            else:
+                serverTermsIndex[serverId][term][-1][1] += 1
+        else:
+            serverTermsIndex[serverId][term] = [[docPosition-1,1]]
+
+@bot.event
+async def messageCheck(message):
+    return message != "" and len(message)<160 and len(message)>5 and '@' not in message and 'nsfw' not in message and 'left for this hour' not in message and 'are now married' not in message and message[0] != '$' and 'to reset the timer' not in message and 'p!catch' not in message
 
 bot.run(Token.token)

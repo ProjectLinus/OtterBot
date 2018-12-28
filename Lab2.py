@@ -3,6 +3,13 @@ import re
 import sys
 import math
 
+
+
+stopwords = ['i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', "you're", "you've", "you'll", "you'd", 'your', 'yours', 'yourself', 'yourselves', 'he', 'him', 'his', 'himself', 'she', "she's", 'her', 'hers', 'herself', 'it', "it's", 'its', 'itself', 'they', 'them', 'their', 'theirs', 'themselves', "that'll", 'those', 'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'a', 'an', 'the', 'and', 'but', 'if', 'or', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', "don't", 'should', "should've", 'now', 'd', 'll', 'm', 'o', 're', 've', 'y', 'ain', 'aren', "aren't", 'couldn', "couldn't", 'didn', "didn't", 'doesn', "doesn't", 'hadn', "hadn't", 'hasn', "hasn't", 'haven', "haven't", 'isn', "isn't", 'ma', 'mightn', "mightn't", 'mustn', "mustn't", 'needn', "needn't", 'shan', "shan't", 'shouldn', "shouldn't", 'wasn', "wasn't", 'weren', "weren't", 'won', "won't", 'wouldn', "wouldn't"]
+
+stopwords_pt = ['de', 'a', 'o', 'que', 'e', 'do', 'da', 'em', 'um', 'para', 'com', 'não', 'uma', 'os', 'no', 'se', 'na', 'por', 'mais', 'as', 'dos', 'como', 'mas', 'ao', 'ele', 'das', 'à', 'seu', 'sua', 'ou', 'quando', 'muito', 'nos', 'já', 'eu', 'também', 'só', 'pelo', 'pela', 'até', 'isso', 'ela', 'entre', 'depois', 'sem', 'mesmo', 'aos', 'seus', 'quem', 'nas', 'me', 'esse', 'eles', 'você', 'essa', 'num', 'nem', 'suas', 'meu', 'às', 'minha', 'numa', 'pelos', 'elas', 'qual', 'nós', 'lhe', 'deles', 'essas', 'esses', 'pelas', 'este', 'dele', 'tu', 'te', 'vocês', 'vos', 'lhes', 'meus', 'minhas', 'teu', 'tua', 'teus', 'tuas', 'nosso', 'nossa', 'nossos', 'nossas', 'dela', 'delas', 'esta', 'estes', 'estas', 'aquele', 'aquela', 'aqueles', 'aquelas', 'isto', 'aquilo', 'estou', 'está', 'estamos', 'estão', 'estive', 'esteve', 'estivemos', 'estiveram', 'estava', 'estávamos', 'estavam', 'estivera', 'estivéramos', 'esteja', 'estejamos', 'estejam', 'estivesse', 'estivéssemos', 'estivessem', 'estiver', 'estivermos', 'estiverem', 'hei', 'há', 'havemos', 'hão', 'houve', 'houvemos', 'houveram', 'houvera', 'houvéramos', 'haja', 'hajamos', 'hajam', 'houvesse', 'houvéssemos', 'houvessem', 'houver', 'houvermos', 'houverem', 'houverei', 'houverá', 'houveremos', 'houverão', 'houveria', 'houveríamos', 'houveriam', 'sou', 'somos', 'são', 'era', 'éramos', 'eram', 'fui', 'foi', 'fomos', 'foram', 'fora', 'fôramos', 'seja', 'sejamos', 'sejam', 'fosse', 'fôssemos', 'fossem', 'for', 'formos', 'forem', 'serei', 'será', 'seremos', 'serão', 'seria', 'seríamos', 'seriam', 'tenho', 'tem', 'temos', 'tém', 'tinha', 'tínhamos', 'tinham', 'tive', 'teve', 'tivemos', 'tiveram', 'tivera', 'tivéramos', 'tenha', 'tenhamos', 'tenham', 'tivesse', 'tivéssemos', 'tivessem', 'tiver', 'tivermos', 'tiverem', 'terei', 'terá', 'teremos', 'terão', 'teria', 'teríamos', 'teriam','é']
+
+
 def createIndexes(filename):
     documentArray = []
     invertedIndex = {}
@@ -14,7 +21,7 @@ def createIndexes(filename):
         for term in terms:
             if(term in invertedIndex.keys()):
                 if(invertedIndex[term][-1][0] != len(documentArray)-1):
-                    invertedIndex[term].append([len(documentArray) - 1,1])
+                    invertedIndex[term].append([len(documentArray) - 1,50])
                 else:
                     invertedIndex[term][-1][1] += 1
             else:
@@ -22,17 +29,17 @@ def createIndexes(filename):
     return documentArray, invertedIndex
 
 
-def createIndex(terms,numDocs):
-    invertedIndex = {}
+def createIndex(terms,docIndex,previousIndex):
+    invertedIndex = previousIndex
     
     for term in terms:
         if(term in invertedIndex.keys()):
-            if(invertedIndex[term][-1][0] != numDocs-1):
-                invertedIndex[term].append([numDocs - 1,1])
+            if(invertedIndex[term][-1][0] != docIndex):
+                invertedIndex[term].append([docIndex,1])
             else:
                 invertedIndex[term][-1][1] += 1
         else:
-            invertedIndex[term] = [[numDocs - 1,1]]
+            invertedIndex[term] = [[docIndex,1]]
     return invertedIndex
 
 
@@ -42,7 +49,12 @@ def createIndex(terms,numDocs):
 
 def cleanPhrase(phrase):
     phrase = re.sub(r'\W+',' ',phrase).lower()
-    return nltk.word_tokenize(phrase)
+    tokenlist = nltk.word_tokenize(phrase)
+    filtered = []
+    for token in tokenlist:
+        if(token not in stopwords and token not in stopwords_pt):
+            filtered.append(token)
+    return filtered
 
 
 def printStatistics(documents,index):
@@ -75,8 +87,6 @@ def printTermStats(termArray,documents,index):
             results += '- Minimum Term Frequency: ' + str(mintf) + "\n"
             results += '- Inverse Document Frequency: ' + str(idf) + "\n"
 
-    print(results)            
-
 def getInverseDocumentFrequency(documents,term,invTermList):
     ndocs = len(documents)
     df = len(invTermList)/ndocs
@@ -101,7 +111,7 @@ def prodSimilarity(termList,documents,index):
 def prodSimilarityOtter(termList,documents,index):
     pairList = {}
     for term in termList:
-        if(term.lower() in index.keys()):
+        if(term in index.keys()):
             inv = index[term]
             idf = getInverseDocumentFrequency(documents,term,index[term])
             for doc in inv:
