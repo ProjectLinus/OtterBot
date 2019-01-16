@@ -1,4 +1,4 @@
-import discord
+﻿import discord
 from discord.ext import commands
 from discord.ext.commands import Bot
 import logging
@@ -93,11 +93,18 @@ async def on_message(message):
             similPars = Lab2.prodSimilarityOtter(tokenizedMessage,serverDocsDict[serverId],serverTermsIndex[serverId])
             if(len(similPars) > 0):
                 sortedPairs = sorted( ((v,k) for k,v in similPars.items()), reverse=True)
-                if(len(sortedPairs)>5):
-                    sortedPairs = sortedPairs[0:5]
+                sortedJaccardList = await generateListByJaccard(tokenizedMessage,sortedPairs,serverId)
+                if(len(sortedPairs)>4):
+                    sortedPairs = sortedPairs[0:4]
+                    sortedJaccardList = sortedJaccardList[0:4]
                 for pair in sortedPairs:
-                    print('PROPOSAL: ' + str(serverDocsDict[serverId][pair[1]][1]))
+                    print('PROPOSAL: ' + str(serverDocsDict[serverId][pair[1]][1]) + '    [' + str(serverDocsDict[serverId][pair[1]][0]) + ']')
+                for pair in sortedJaccardList:                 
+                    print('PROPOSAL: ' + str(serverDocsDict[serverId][pair[0][1]][1]) + '    [' + str(serverDocsDict[serverId][pair[0][1]][0]) + ']')
+                    sortedPairs.append(pair[0])
+                #choice = random.randrange(math.ceil(len(sortedJaccardList)))
                 choice = random.randrange(math.ceil(len(sortedPairs)))
+                #await bot.send_message(message.channel,str(serverDocsDict[serverId][sortedJaccardList[choice][0][1]][1]))
                 await bot.send_message(message.channel,str(serverDocsDict[serverId][sortedPairs[choice][1]][1]))
             else:
                 await bot.send_message(message.channel,'<:sadotter:509261369493946369>')
@@ -118,7 +125,7 @@ async def on_message(message):
                     if(len(sortedPairs)>5):
                         sortedPairs = sortedPairs[0:5]
                     for pair in sortedPairs:
-                        print('PROPOSAL: ' + str(serverDocsDict[serverId][pair[1]][1]))
+                        print('PROPOSAL: ' + str(serverDocsDict[serverId][pair[1]][1]) + '    [' + str(serverDocsDict[serverId][pair[1]][0]) + ']')
                     choice = random.randrange(math.ceil(len(sortedPairs)))
                     await bot.send_message(message.channel,str(serverDocsDict[serverId][sortedPairs[choice][1]][1]))
             indexingCount += 1
@@ -167,5 +174,31 @@ async def createTermEntry(terms,docPosition,serverId):
 @bot.event
 async def messageCheck(message):
     return message != "" and len(message)<160 and len(message)>5 and '@' not in message and 'nsfw' not in message and 'left for this hour' not in message and 'are now married' not in message and message[0] != '$' and 'to reset the timer' not in message and 'p!catch' not in message
+
+
+@bot.event
+async def birthdayMessage():
+    userId = '<@244278043588165632>'
+    message = 'Happy birthday, ' + userId + '! I hope you have a great day, and I apologize for all the times I said mean stuff to you ❤️'
+    await bot.send_message(discord.Object(id='509192905139683330'),message)
+
+
+@bot.event
+async def jaccard_similarity(list1, list2):
+    intersection = len(list(set(list1).intersection(list2)))
+    union = (len(list1) + len(list2)) - intersection
+    return float(intersection / union)
+
+
+@bot.event
+async def generateListByJaccard(queryTokens,sortedPairs,serverId):
+    jaccardList = []
+    for pair in sortedPairs:
+        answerString = str(serverDocsDict[serverId][pair[1]][1])
+        answerTokens = Lab2.cleanPhrase(answerString)
+        score = await jaccard_similarity(queryTokens,answerTokens)
+        jaccardList.append((pair,score))
+    sortedList = sorted(jaccardList, key=lambda x: x[1], reverse=True)
+    return sortedList
 
 bot.run(Token.token)
